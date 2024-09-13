@@ -1,2 +1,2 @@
-# castekern
-A C-made kernel.
+# chat-room
+A C-made chat room.
