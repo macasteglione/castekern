@@ -1,8 +1,14 @@
 #include "include/server.h"
 
-int main()
+int main(int argc, char const *argv[])
 {
-    iniciar_socket_servidor(2000, "");
+    if (argc != 3)
+    {
+        printf("Uso: [ip del servidor] [puerto]\n");
+        exit(EXIT_FAILURE);
+    }
 
-    return 0;
+    iniciarServidor(argv[1], atoi(argv[2]));
+
+    exit(EXIT_SUCCESS);
 }

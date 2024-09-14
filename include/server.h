@@ -5,9 +5,12 @@
 
 #define MAX_BUFFER 1024
 
-struct socket_entrante;
-void iniciar_socket_servidor(unsigned short port, char *ip);
-void recibir_mensaje(int socket_fd_cliente, int socket_fd_servidor);
-struct socket_entrante *aceptar_mensaje_entrante(int socket_fd_servidor);
+struct AcceptedSocket *acceptIncomingConnection(int serverSocketFD);
+void acceptNewConnectionAndReceiveAndPrintItsData(int serverSocketFD);
+void receiveAndPrintIncomingData(int socketFD);
+void startAcceptingIncomingConnections(int serverSocketFD);
+void receiveAndPrintIncomingDataOnSeparateThread(struct AcceptedSocket *pSocket);
+void sendReceivedMessageToTheOtherClients(char *buffer, int socketFD);
+void iniciarServidor(char *ip, unsigned short port);
 
 #endif // !SERVER_HEADER

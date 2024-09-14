@@ -1,64 +1,87 @@
 #include "../include/server.h"
 
-struct socket_entrante
+struct AcceptedSocket acceptedSockets[10];
+int acceptedSocketsCount = 0;
+
+void iniciarServidor(char *ip, unsigned short port)
 {
-    int socket_fd;
-    struct sockaddr_in direccion;
-    int error;
-    int aceptadoCorrectamente; // booleano
-};
+    int serverSocketFD = createTCPIpv4Socket();
+    struct sockaddr_in *serverAddress = createIPv4Address(ip, port);
 
-void iniciar_socket_servidor(unsigned short port, char *ip)
-{
-    int socket_fd_servidor = crear_socket_tcp_ipv4();
-    struct sockaddr_in *direccion = crear_dirreccion_ipv4(port, ip);
+    int result = bind(serverSocketFD, serverAddress, sizeof(*serverAddress));
+    if (result == 0)
+        printf("socket was bound successfully\n");
 
-    int resultado = bind(socket_fd_servidor, (struct sockaddr *)direccion, sizeof(*direccion));
+    int listenResult = listen(serverSocketFD, 10);
 
-    if (resultado == 0)
-        printf("El socket esta enlazado correctamente.\n");
+    startAcceptingIncomingConnections(serverSocketFD);
 
-    int resultado_listen = listen(socket_fd_servidor, 10);
-    struct socket_entrante *socket_cliente = aceptar_mensaje_entrante(socket_fd_servidor);
+    shutdown(serverSocketFD, SHUT_RDWR);
 
-    recibir_mensaje(socket_cliente->socket_fd, socket_fd_servidor);
+    startListeningAndPrintMessagesOnNewThread(serverSocketFD);
+    readConsoleEntriesAndSendToServer(serverSocketFD);
+    close(serverSocketFD);
 }
 
-void recibir_mensaje(int socket_fd_cliente, int socket_fd_servidor)
+void startAcceptingIncomingConnections(int serverSocketFD)
+{
+    while (true)
+    {
+        struct AcceptedSocket *clientSocket = acceptIncomingConnection(serverSocketFD);
+        acceptedSockets[acceptedSocketsCount++] = *clientSocket;
+        receiveAndPrintIncomingDataOnSeparateThread(clientSocket);
+    }
+}
+
+void receiveAndPrintIncomingDataOnSeparateThread(struct AcceptedSocket *pSocket)
+{
+    pthread_t id;
+    pthread_create(&id, NULL, receiveAndPrintIncomingData, pSocket->acceptedSocketFD);
+}
+
+void receiveAndPrintIncomingData(int socketFD)
 {
     char buffer[MAX_BUFFER];
 
-    while (1)
+    while (true)
     {
-        ssize_t tamano_recibido = recv(socket_fd_cliente, buffer, MAX_BUFFER, 0);
+        ssize_t amountReceived = recv(socketFD, buffer, MAX_BUFFER, 0);
 
-        if (tamano_recibido > 0)
+        if (amountReceived > 0)
         {
-            buffer[tamano_recibido] = 0;
-            printf("La respuesta fue: %s\n", buffer);
+            buffer[amountReceived] = 0;
+            printf("%s\n", buffer);
+
+            sendReceivedMessageToTheOtherClients(buffer, socketFD);
         }
 
-        if (tamano_recibido == 0)
+        if (amountReceived == 0)
             break;
     }
 
-    close(socket_fd_cliente);
-    shutdown(socket_fd_servidor, SHUT_RDWR);
+    close(socketFD);
 }
 
-struct socket_entrante *aceptar_mensaje_entrante(int socket_fd_servidor)
+void sendReceivedMessageToTheOtherClients(char *buffer, int socketFD)
 {
-    struct sockaddr_in direccion_cliente;
-    int tamano_direccion_cliente = sizeof(direccion_cliente);
-    int socket_fd_cliente = accept(socket_fd_servidor, (struct sockaddr *)&direccion_cliente, &tamano_direccion_cliente);
+    for (int i = 0; i < acceptedSocketsCount; i++)
+        if (acceptedSockets[i].acceptedSocketFD != socketFD)
+            send(acceptedSockets[i].acceptedSocketFD, buffer, strlen(buffer), 0);
+}
 
-    struct socket_entrante *socket_aceptado = malloc(sizeof(struct socket_entrante));
-    socket_aceptado->direccion = direccion_cliente;
-    socket_aceptado->socket_fd = socket_fd_cliente;
-    socket_aceptado->aceptadoCorrectamente = socket_fd_cliente > 0;
+struct AcceptedSocket *acceptIncomingConnection(int serverSocketFD)
+{
+    struct sockaddr_in clientAddress;
+    int clientAddressSize = sizeof(struct sockaddr_in);
+    int clientSocketFD = accept(serverSocketFD, &clientAddress, &clientAddressSize);
 
-    if (!socket_aceptado->aceptadoCorrectamente)
-        socket_aceptado->error = socket_fd_cliente;
+    struct AcceptedSocket *acceptedSocket = malloc(sizeof(struct AcceptedSocket));
+    acceptedSocket->address = clientAddress;
+    acceptedSocket->acceptedSocketFD = clientSocketFD;
+    acceptedSocket->acceptedSuccessfully = clientSocketFD > 0;
 
-    return socket_aceptado;
+    if (!acceptedSocket->acceptedSuccessfully)
+        acceptedSocket->error = clientSocketFD;
+
+    return acceptedSocket;
 }

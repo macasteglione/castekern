@@ -1,37 +1,74 @@
 #include "../include/client.h"
 
-void iniciar_socket_cliente(unsigned short port, char *ip)
+void conectarCliente(char *ip, unsigned short port)
 {
-    int socket_fd_cliente = crear_socket_tcp_ipv4();
-    struct sockaddr_in *direccion = crear_dirreccion_ipv4(port, ip);
+    int socketFD = createTCPIpv4Socket();
+    struct sockaddr_in *address = createIPv4Address(ip, port);
 
-    int resultado = connect(socket_fd_cliente, (struct sockaddr *)direccion, sizeof(*direccion));
+    int result = connect(socketFD, address, sizeof(*address));
+    if (result == 0)
+        printf("connection was successful\n");
 
-    if (resultado == 0)
-        printf("La conexion fue exitosa.\n");
-
-    enviar_mensaje(socket_fd_cliente);
+    startListeningAndPrintMessagesOnNewThread(socketFD);
+    readConsoleEntriesAndSendToServer(socketFD);
+    close(socketFD);
 }
 
-void enviar_mensaje(int socket_fd_cliente)
+void readConsoleEntriesAndSendToServer(int socketFD)
 {
+    char *name = NULL;
+    size_t nameSize = 0;
+    printf("please enter your name?\n");
+    ssize_t nameCount = getline(&name, &nameSize, stdin);
+    name[nameCount - 1] = 0;
+
     char *line = NULL;
-    size_t tamano_linea = 0;
-    printf("Escriba un mensaje para enviar (escriba 'salir' para cerrar):\n");
+    size_t lineSize = 0;
+    printf("type and we will send(type exit)...\n");
 
-    while (1)
+    char buffer[1024];
+
+    while (true)
     {
-        ssize_t contador_char = getline(&line, &tamano_linea, stdin);
 
-        if (tamano_linea > 0)
+        ssize_t charCount = getline(&line, &lineSize, stdin);
+        line[charCount - 1] = 0;
+
+        sprintf(buffer, "%s >> %s", name, line);
+
+        if (charCount > 0)
         {
-            if (strcmp(line, "salir\n") == 0)
+            if (strcmp(line, "exit") == 0)
                 break;
 
-            ssize_t tamano_enviado = send(socket_fd_cliente, line, tamano_linea, 0);
+            ssize_t amountWasSent = send(socketFD, buffer, strlen(buffer), 0);
         }
     }
+}
 
-    close(socket_fd_cliente);
-    shutdown(socket_fd_cliente, SHUT_RDWR);
+void startListeningAndPrintMessagesOnNewThread(int socketFD)
+{
+    pthread_t id;
+    pthread_create(&id, NULL, listenAndPrint, socketFD);
+}
+
+void listenAndPrint(int socketFD)
+{
+    char buffer[MAX_BUFFER];
+
+    while (true)
+    {
+        ssize_t amountReceived = recv(socketFD, buffer, MAX_BUFFER, 0);
+
+        if (amountReceived > 0)
+        {
+            buffer[amountReceived] = 0;
+            printf("%s\n", buffer);
+        }
+
+        if (amountReceived == 0)
+            break;
+    }
+
+    close(socketFD);
 }

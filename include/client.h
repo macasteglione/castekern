@@ -5,7 +5,9 @@
 
 #define MAX_BUFFER 1024
 
-void iniciar_socket_cliente(unsigned short port, char *ip);
-void enviar_mensaje(int socket_fd);
+void startListeningAndPrintMessagesOnNewThread(int fd);
+void listenAndPrint(int socketFD);
+void readConsoleEntriesAndSendToServer(int socketFD);
+void conectarCliente(char *ip, unsigned short port);
 
 #endif // !CLIENT_HEADER

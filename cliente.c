@@ -1,8 +1,14 @@
 #include "include/client.h"
 
-int main()
+int main(int argc, char const *argv[])
 {
-    iniciar_socket_cliente(2000, "127.0.0.1");
+    if (argc != 3)
+    {
+        printf("Uso: [ip del servidor] [puerto]\n");
+        exit(EXIT_FAILURE);
+    }
 
-    return 0;
+    conectarCliente(argv[1], atoi(argv[2]));
+
+    exit(EXIT_SUCCESS);
 }
