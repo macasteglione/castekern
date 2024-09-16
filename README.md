@@ -1,4 +1,4 @@
-# Chat Room TCP
+# Chat Room TCP/IP Servidor Cliente
 
 Este es un programa de servidor-cliente basado en sockets TCP que permite a múltiples clientes conectarse y enviar mensajes a través de un servidor.
 
