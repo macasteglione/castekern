@@ -7,16 +7,20 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <malloc.h>
-#include <stdbool.h>
 #include <pthread.h>
 #include <stdlib.h>
 
+#define MAX_BUFFER 1024
+#define MAX_SOCKETS 10
+#define MAX_NAMESIZE 50
+
 struct AcceptedSocket
 {
-    int acceptedSocketFD;
+    int socketFD;
     struct sockaddr_in address;
     int error;
-    bool acceptedSuccessfully;
+    int isAceppted; // boolean
+    char userName[MAX_NAMESIZE];
 };
 
 struct sockaddr_in *createIPv4Address(char *ip, int port);

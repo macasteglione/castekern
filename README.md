@@ -1,4 +1,4 @@
-# Chat TCP con Broadcast Multithreading
+# Chat Room TCP
 
 Este es un programa de servidor-cliente basado en sockets TCP que permite a múltiples clientes conectarse y enviar mensajes a través de un servidor.
 

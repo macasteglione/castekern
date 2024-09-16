@@ -1,6 +1,9 @@
 #include "../include/utils.h"
 
-int createTCPIpv4Socket() { return socket(AF_INET, SOCK_STREAM, 0); }
+int createTCPIpv4Socket()
+{
+    return socket(AF_INET, SOCK_STREAM, 0);
+}
 
 struct sockaddr_in *createIPv4Address(char *ip, int port)
 {

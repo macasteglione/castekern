@@ -1,49 +1,58 @@
 #include "../include/server.h"
 
-struct AcceptedSocket acceptedSockets[10];
+struct AcceptedSocket acceptedSockets[MAX_SOCKETS];
 int acceptedSocketsCount = 0;
 
-void iniciarServidor(char *ip, unsigned short port)
+void initServer(char *ip, unsigned short port)
 {
     int serverSocketFD = createTCPIpv4Socket();
     struct sockaddr_in *serverAddress = createIPv4Address(ip, port);
 
     int result = bind(serverSocketFD, serverAddress, sizeof(*serverAddress));
-    if (result == 0)
-        printf("socket was bound successfully\n");
+    if (result < 0)
+        printf("Error: %s:%d ya esta en uso.\n", ip, port);
+    else
+    {
+        printf("Socket conectado en %s:%d\n", ip, port);
+        listen(serverSocketFD, 10);
 
-    int listenResult = listen(serverSocketFD, 10);
-
-    startAcceptingIncomingConnections(serverSocketFD);
+        listeningConnections(serverSocketFD);
+    }
 
     shutdown(serverSocketFD, SHUT_RDWR);
-
-    startListeningAndPrintMessagesOnNewThread(serverSocketFD);
-    readConsoleEntriesAndSendToServer(serverSocketFD);
     close(serverSocketFD);
 }
 
-void startAcceptingIncomingConnections(int serverSocketFD)
+void listeningConnections(int serverSocketFD)
 {
-    while (true)
+    while (1)
     {
-        struct AcceptedSocket *clientSocket = acceptIncomingConnection(serverSocketFD);
+        struct AcceptedSocket *clientSocket = acceptConnection(serverSocketFD);
         acceptedSockets[acceptedSocketsCount++] = *clientSocket;
-        receiveAndPrintIncomingDataOnSeparateThread(clientSocket);
+        listeningThreadServer(clientSocket);
     }
 }
 
-void receiveAndPrintIncomingDataOnSeparateThread(struct AcceptedSocket *pSocket)
+void listeningThreadServer(struct AcceptedSocket *pSocket)
 {
     pthread_t id;
-    pthread_create(&id, NULL, receiveAndPrintIncomingData, pSocket->acceptedSocketFD);
+    pthread_create(&id, NULL, showMsgServer, pSocket->socketFD);
 }
 
-void receiveAndPrintIncomingData(int socketFD)
+void showMsgServer(int socketFD)
 {
+    struct AcceptedSocket *client = NULL;
+
+    for (int i = 0; i < acceptedSocketsCount; i++)
+        if (acceptedSockets[i].socketFD == socketFD)
+        {
+            client = &acceptedSockets[i];
+            break;
+        }
+
     char buffer[MAX_BUFFER];
 
-    while (true)
+    while (1)
     {
         ssize_t amountReceived = recv(socketFD, buffer, MAX_BUFFER, 0);
 
@@ -52,24 +61,33 @@ void receiveAndPrintIncomingData(int socketFD)
             buffer[amountReceived] = 0;
             printf("%s\n", buffer);
 
-            sendReceivedMessageToTheOtherClients(buffer, socketFD);
+            broadcastMsg(buffer, socketFD);
         }
 
         if (amountReceived == 0)
+        {
+            /*
+            if (client != NULL)
+            {
+                printf("'%s' se ha desconectado.\n", client->userName);
+                broadcastMsg(strcat(client->userName, " se ha desconectado."), socketFD);
+            }
+            */
             break;
+        }
     }
 
     close(socketFD);
 }
 
-void sendReceivedMessageToTheOtherClients(char *buffer, int socketFD)
+void broadcastMsg(char *buffer, int socketFD)
 {
     for (int i = 0; i < acceptedSocketsCount; i++)
-        if (acceptedSockets[i].acceptedSocketFD != socketFD)
-            send(acceptedSockets[i].acceptedSocketFD, buffer, strlen(buffer), 0);
+        if (acceptedSockets[i].socketFD != socketFD)
+            send(acceptedSockets[i].socketFD, buffer, strlen(buffer), 0);
 }
 
-struct AcceptedSocket *acceptIncomingConnection(int serverSocketFD)
+struct AcceptedSocket *acceptConnection(int serverSocketFD)
 {
     struct sockaddr_in clientAddress;
     int clientAddressSize = sizeof(struct sockaddr_in);
@@ -77,10 +95,34 @@ struct AcceptedSocket *acceptIncomingConnection(int serverSocketFD)
 
     struct AcceptedSocket *acceptedSocket = malloc(sizeof(struct AcceptedSocket));
     acceptedSocket->address = clientAddress;
-    acceptedSocket->acceptedSocketFD = clientSocketFD;
-    acceptedSocket->acceptedSuccessfully = clientSocketFD > 0;
+    acceptedSocket->socketFD = clientSocketFD;
+    acceptedSocket->isAceppted = clientSocketFD > 0;
 
-    if (!acceptedSocket->acceptedSuccessfully)
+    /*
+    if (acceptedSocket->isAceppted)
+    {
+        // Recibir el nombre del cliente
+        char userName[MAX_BUFFER];
+        ssize_t nameLength = recv(clientSocketFD, userName, sizeof(userName), 0);
+
+        if (nameLength > 0)
+        {
+            userName[nameLength] = '\0';
+            strncpy(acceptedSocket->userName, userName, sizeof(acceptedSocket->userName) - 1); // Copiar el nombre recibido
+            acceptedSocket->userName[sizeof(acceptedSocket->userName) - 1] = '\0';             // Asegurar terminación en nulo
+
+            // Crear un mensaje de conexión
+            char connectMsg[MAX_BUFFER];
+            snprintf(connectMsg, sizeof(connectMsg), "'%s' se ha conectado al chat.", acceptedSocket->userName);
+
+            // Imprimir y difundir el mensaje de conexión
+            printf("Cliente conectado '%s'\n", acceptedSocket->userName);
+            broadcastMsg(connectMsg, clientSocketFD);
+        }
+    }
+    */
+
+    if (!acceptedSocket->isAceppted)
         acceptedSocket->error = clientSocketFD;
 
     return acceptedSocket;

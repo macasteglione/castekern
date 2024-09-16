@@ -8,7 +8,7 @@ int main(int argc, char const *argv[])
         exit(EXIT_FAILURE);
     }
 
-    iniciarServidor(argv[1], atoi(argv[2]));
+    initServer(argv[1], atoi(argv[2]));
 
     exit(EXIT_SUCCESS);
 }

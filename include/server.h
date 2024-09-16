@@ -3,14 +3,11 @@
 
 #include "utils.h"
 
-#define MAX_BUFFER 1024
-
-struct AcceptedSocket *acceptIncomingConnection(int serverSocketFD);
-void acceptNewConnectionAndReceiveAndPrintItsData(int serverSocketFD);
-void receiveAndPrintIncomingData(int socketFD);
-void startAcceptingIncomingConnections(int serverSocketFD);
-void receiveAndPrintIncomingDataOnSeparateThread(struct AcceptedSocket *pSocket);
-void sendReceivedMessageToTheOtherClients(char *buffer, int socketFD);
-void iniciarServidor(char *ip, unsigned short port);
+struct AcceptedSocket *acceptConnection(int serverSocketFD);
+void listeningThreadServer(struct AcceptedSocket *pSocket);
+void showMsgServer(int socketFD);
+void listeningConnections(int serverSocketFD);
+void broadcastMsg(char *buffer, int socketFD);
+void initServer(char *ip, unsigned short port);
 
 #endif // !SERVER_HEADER

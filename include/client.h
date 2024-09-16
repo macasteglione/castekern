@@ -3,11 +3,9 @@
 
 #include "utils.h"
 
-#define MAX_BUFFER 1024
-
-void startListeningAndPrintMessagesOnNewThread(int fd);
-void listenAndPrint(int socketFD);
-void readConsoleEntriesAndSendToServer(int socketFD);
-void conectarCliente(char *ip, unsigned short port);
+void listeningThreadClient(int fd);
+void showMsgClient(int socketFD);
+void sendUserMsg(int socketFD);
+void connectClient(char *ip, unsigned short port);
 
 #endif // !CLIENT_HEADER

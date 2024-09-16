@@ -1,36 +1,41 @@
 #include "../include/client.h"
 
-void conectarCliente(char *ip, unsigned short port)
+void connectClient(char *ip, unsigned short port)
 {
     int socketFD = createTCPIpv4Socket();
     struct sockaddr_in *address = createIPv4Address(ip, port);
 
     int result = connect(socketFD, address, sizeof(*address));
-    if (result == 0)
-        printf("connection was successful\n");
+    if (result < 0)
+        printf("Error al conectar a %s:%d\n", ip, port);
+    else
+    {
+        printf("Conectado a %s:%d\n", ip, port);
+        listeningThreadClient(socketFD);
+        sendUserMsg(socketFD);
+    }
 
-    startListeningAndPrintMessagesOnNewThread(socketFD);
-    readConsoleEntriesAndSendToServer(socketFD);
     close(socketFD);
 }
 
-void readConsoleEntriesAndSendToServer(int socketFD)
+void sendUserMsg(int socketFD)
 {
+    char buffer[MAX_BUFFER];
+
     char *name = NULL;
     size_t nameSize = 0;
-    printf("please enter your name?\n");
+    printf("Ingresa tu nombre: ");
     ssize_t nameCount = getline(&name, &nameSize, stdin);
     name[nameCount - 1] = 0;
 
+    //send(socketFD, name, strlen(name), 0);
+
     char *line = NULL;
     size_t lineSize = 0;
-    printf("type and we will send(type exit)...\n");
+    printf("Bienvenido al chat (Escriba 'salir' para cerrar)...\n");
 
-    char buffer[1024];
-
-    while (true)
+    while (1)
     {
-
         ssize_t charCount = getline(&line, &lineSize, stdin);
         line[charCount - 1] = 0;
 
@@ -38,7 +43,7 @@ void readConsoleEntriesAndSendToServer(int socketFD)
 
         if (charCount > 0)
         {
-            if (strcmp(line, "exit") == 0)
+            if (strcmp(line, "salir") == 0)
                 break;
 
             ssize_t amountWasSent = send(socketFD, buffer, strlen(buffer), 0);
@@ -46,17 +51,17 @@ void readConsoleEntriesAndSendToServer(int socketFD)
     }
 }
 
-void startListeningAndPrintMessagesOnNewThread(int socketFD)
+void listeningThreadClient(int socketFD)
 {
     pthread_t id;
-    pthread_create(&id, NULL, listenAndPrint, socketFD);
+    pthread_create(&id, NULL, showMsgClient, socketFD);
 }
 
-void listenAndPrint(int socketFD)
+void showMsgClient(int socketFD)
 {
     char buffer[MAX_BUFFER];
 
-    while (true)
+    while (1)
     {
         ssize_t amountReceived = recv(socketFD, buffer, MAX_BUFFER, 0);
 
@@ -67,7 +72,10 @@ void listenAndPrint(int socketFD)
         }
 
         if (amountReceived == 0)
+        {
+            printf("El servidor se ha desconectado.\n");
             break;
+        }
     }
 
     close(socketFD);
